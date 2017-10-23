@@ -15,6 +15,7 @@ import json
 from globe_indexer import db
 
 
+# pylint: disable=too-few-public-methods
 class _BaseModel(db.Model):
     """
     Base Model representation of an entry in the database
@@ -29,8 +30,10 @@ class _BaseModel(db.Model):
                              default=db.func.current_timestamp())
     date_updated = db.Column(db.DateTime, nullable=True,
                              onupdate=db.func.current_timestmap())
+# pylint: enable=too-few-public-methods
 
 
+# pylint: disable=too-many-instance-attributes,too-few-public-methods
 class GeoName(_BaseModel):
     """
     Model representation of a city
@@ -68,7 +71,10 @@ class GeoName(_BaseModel):
 
         :param doc: dictionary-like instance
         """
+        # pylint: disable=invalid-name
         self.id = int(doc['geonameid'])
+        # pylint: enable=invalid-name
+
         self.name = doc['name']
         self.ascii_name = doc['asciiname']
 
@@ -152,3 +158,4 @@ class GeoName(_BaseModel):
             'alternate_country_codes': cc2,
         }
         return json.loads(json.dumps(value))
+# pylint: enable=too-many-instance-attributes,too-few-public-methods

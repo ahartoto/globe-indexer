@@ -28,6 +28,10 @@ api = flask.Blueprint('api', __name__)
 # taken from http://findicons.com/files/icons/98/nx11/256/internet_real.png
 @api.route('/favicon.ico')
 def favicon():
+    """
+    Return the icon used to distinguish this application
+    :returns: Flask response
+    """
     return flask.send_from_directory(os.path.join(api.root_path, 'static'),
                                      'favicon.ico',
                                      mimetype='image/vnd.microsoft.icon')
@@ -35,6 +39,12 @@ def favicon():
 
 @api.route('/<int:geoname_id>')
 def geoname(geoname_id):
+    """
+    Get the resource information of a city given an ID
+
+    :param geoname_id: int - ID associated with a city
+    :returns: Flask response
+    """
     result = GeoName.query.filter_by(id=geoname_id).first()
     if not result:
         payload = {
@@ -50,11 +60,21 @@ def geoname(geoname_id):
 
 @api.route('/health')
 def health():
+    """
+    Endpoint to help checking the health of our app when it's deployed
+
+    :returns: Flask response
+    """
     return flask.jsonify({'message': 'API is available'})
 
 
 @api.route('/lexical')
 def lexical():
+    """
+    Get the information of cities that are matching the specified keywords.
+
+    :returns: Flask response
+    """
     if not flask.request.query_string:
         payload = {
             'error': {
@@ -109,6 +129,12 @@ def lexical():
 
 @api.route('/proximity/<int:geoname_id>')
 def proximity(geoname_id):
+    """
+    Get cities closest to the specified one.
+
+    :param geoname_id: int - ID associated with a city
+    :returns: Flask response
+    """
     if not flask.request.query_string:
         payload = {
             'error': {
@@ -162,9 +188,12 @@ def proximity(geoname_id):
         }
         return flask.jsonify(payload), http.HTTPStatus.NOT_FOUND
 
-    # Get all points in the table, and calculate distances
+    # Get all points in the table
+    # pylint: disable=no-member
     points = db.session.query(GeoName.id, GeoName.latitude,
                               GeoName.longitude).all()
+    # pylint: enable=no-member
+
     distances = list()
     for other_id, other_lat, other_long in points:
         if other_id == geoname_id:

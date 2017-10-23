@@ -7,12 +7,14 @@ Interface classes:
     GlobeIndexerError
 """
 
-NEW_LINE = '\n'
+# Globe Indexer
+from globe_indexer.config import NEW_LINE
 
 
-class _GlobeIndexerBaseError(Exception):
+# Interface Classes
+class GlobeIndexerError(Exception):
     """
-
+    Base Exception for Globe Indexer package
     """
     def __init__(self, message, details=None, hint=None):
         Exception.__init__(self, message)
@@ -33,7 +35,3 @@ class _GlobeIndexerBaseError(Exception):
             messages.append(self.details)
 
         return NEW_LINE.join(messages)
-
-
-class GlobeIndexerError(_GlobeIndexerBaseError):
-    pass
