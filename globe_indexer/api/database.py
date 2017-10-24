@@ -13,7 +13,8 @@ import os
 # Globe Indexer
 from globe_indexer.config import DATA_SET_URL
 from globe_indexer.api.models import GeoName
-from globe_indexer.utils import download_file, parse_geoname_table_file
+from globe_indexer.error import GlobeIndexerError
+from globe_indexer.utils import download_file, parse_geoname_table_file, unzip
 
 
 # Interface functions
@@ -30,7 +31,13 @@ def initialize_db(db, fpath, **kwargs):
     if db.session.query(GeoName).count() == 0:
         if not os.path.isfile(fpath):
             # download from the source and place it in the fpath
-            download_file(DATA_SET_URL, fpath)
+            zip_fpath = os.path.join(os.path.dirname(fpath), 'cities.zip')
+            download_file(DATA_SET_URL, zip_fpath)
+            unzip(zip_fpath, os.path.dirname(fpath))
+
+            if not os.path.isfile(fpath):
+                fstr = "cannot retrieve the file: {}".format(fpath)
+                raise GlobeIndexerError(fstr)
 
         for row in parse_geoname_table_file(fpath, **kwargs):
             point = GeoName(row)

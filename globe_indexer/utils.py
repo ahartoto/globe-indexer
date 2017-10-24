@@ -8,12 +8,14 @@ Interface functions:
     get_distance
     mkdirs
     parse_geoname_table_file
+    unzip
 """
 
 # Standard libraries
 import csv
 import math
 import os
+import zipfile
 
 # Requests
 import requests
@@ -124,3 +126,15 @@ def parse_geoname_table_file(fpath, delimiter='\t'):
             rows.append(line)
 
     return rows
+
+
+def unzip(fpath, dpath):
+    """
+    Unzip all files in the zip file at the specified directory
+
+    :param fpath: string - path to zip file
+    :param dpath: string - output path
+    """
+    mkdirs(dpath)
+    with zipfile.ZipFile(fpath) as zip_fin:
+        zip_fin.extractall(path=dpath)
