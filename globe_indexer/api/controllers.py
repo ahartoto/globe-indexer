@@ -15,6 +15,7 @@ import flask
 from sqlalchemy import and_, or_
 
 # Globe Indexer
+from globe_indexer import config
 from globe_indexer import db
 from globe_indexer import utils
 from globe_indexer.api.models import GeoName
@@ -135,17 +136,8 @@ def proximity(geoname_id):
     :param geoname_id: int - ID associated with a city
     :returns: Flask response
     """
-    if not flask.request.query_string:
-        payload = {
-            'error': {
-                'message': 'no k query string was provided',
-                'type': 'MISSING_QUERY_PARAMETER',
-            }
-        }
-        return flask.jsonify(payload), http.HTTPStatus.BAD_REQUEST
-
     extra_query_params = [key for key in flask.request.args
-                          if key not in {'k'}]
+                          if key not in {'k', 'countryCode'}]
     if extra_query_params:
         payload = {
             'error': {
@@ -161,13 +153,8 @@ def proximity(geoname_id):
         if k < 1:
             raise ValueError("invalid value for parameter k")
     except KeyError:
-        payload = {
-            'error': {
-                'message': "query parameter 'k' needs to be specified",
-                'type': 'MISSING_QUERY_PARAMETER',
-            }
-        }
-        return flask.jsonify(payload), http.HTTPStatus.BAD_REQUEST
+        # Choose default
+        k = config.DEFAULT_PROXIMITY_LIMIT
     except ValueError:
         payload = {
             'error': {
@@ -177,6 +164,11 @@ def proximity(geoname_id):
             }
         }
         return flask.jsonify(payload), http.HTTPStatus.BAD_REQUEST
+
+    try:
+        country_code = str(flask.request.args['countryCode']).upper()
+    except KeyError:
+        country_code = None
 
     result = GeoName.query.filter_by(id=geoname_id).first()
     if not result:
@@ -190,9 +182,13 @@ def proximity(geoname_id):
 
     # Get all points in the table
     # pylint: disable=no-member
-    points = db.session.query(GeoName.id, GeoName.latitude,
-                              GeoName.longitude).all()
+    query = db.session.query(GeoName.id, GeoName.latitude,
+                             GeoName.longitude)
     # pylint: enable=no-member
+    if country_code is None:
+        points = query.all()
+    else:
+        points = query.filter_by(country_code=country_code).all()
 
     distances = list()
     for other_id, other_lat, other_long in points:
@@ -202,6 +198,9 @@ def proximity(geoname_id):
                                              other_long, other_lat),
                           other_id))
 
-    cities = [{'id': distance[1], 'distance': distance[0]}
+    cities = [{'city': GeoName.query.filter_by(id=distance[1]).first().json(),
+               'distance': distance[0]}
               for distance in sorted(distances)[:k]]
-    return flask.jsonify({'cities': cities, 'total_available': len(distances)})
+    return flask.jsonify({'cities': cities,
+                          'limit': k,
+                          'total_available': len(distances)})

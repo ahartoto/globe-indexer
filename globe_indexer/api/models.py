@@ -139,23 +139,12 @@ class GeoName(_BaseModel):
 
         :returns: JSON object
         """
-        if self.alternate_names:
-            alternate_names = self.alternate_names.split(',')
-        else:
-            alternate_names = None
-
-        cc2 = self.cc2.split(',') if self.cc2 else None
-
         value = {
             'id': self.id,
             'name': self.name,
-            'ascii_name': self.ascii_name,
-            'alternate_names': alternate_names,
             'latitude': self.latitude,
             'longitude': self.longitude,
-            'population': self.population,
             'country_code': self.country_code,
-            'alternate_country_codes': cc2,
         }
         return json.loads(json.dumps(value))
 # pylint: enable=too-many-instance-attributes,too-few-public-methods
