@@ -8,6 +8,8 @@ python:
 install:
 - pip install --upgrade -r requirements.txt
 - pip install --upgrade -r requirements-dev.txt
+- mkdir -p $TRAVIS_BUILD_DIR/instance
+- touch $TRAVIS_BUILD_DIR/instance/config.py
 script:
 - pylint globe_indexer
 - pip install -e . && python -m pytest tests
