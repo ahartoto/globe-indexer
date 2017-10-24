@@ -10,6 +10,8 @@ install:
 - pip install --upgrade -r requirements-dev.txt
 - mkdir -p $TRAVIS_BUILD_DIR/instance
 - touch $TRAVIS_BUILD_DIR/instance/config.py
+- mkdir -p $TRAVIS_BUILD_DIR/globe_indexer/input
+- cp $TRAVIS_BUILD_DIR/tests/data/geoname_examples.txt $TRAVIS_BUILD_DIR/globe_indexer/input/cities1000.txt
 script:
 - pylint globe_indexer
 - pip install -e . && python -m pytest tests
