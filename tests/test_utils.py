@@ -17,6 +17,6 @@ class TestParseGeonameTable:
         cls.input_fpath = os.path.join(os.path.dirname(__file__), 'data',
                                        'geoname_example.txt')
 
-    def test_parse(self):
+    def test_parse_input_file(self):
         rows = utils.parse_geoname_table_file(self.input_fpath)
         assert len(rows) == 9

@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Globe Indexer</title>
+    {% block head %}{% endblock %}
+    <link rel="stylesheet" type="text/css"
+          href="{{ url_for('api.static', filename='style.css') }}" />
+    {% block additional_style %}{% endblock %}
+</head>
+<body>
+    <h1 align="center">Globe Indexer</h1>
+    <div class="flex-container page">
+        <div id="form" class="flex-item form">
+            {% block form %}{% endblock %}
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="flash-message">
+                    <br />
+                    {% for category, message in messages %}
+                        <p class="{{ category }}">
+                            <b>{{ category.upper() }}</b>: {{ message }}
+                        </p>
+                    {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+            {% block additional_links %}{% endblock %}
+        </div>
+        {% block content %}{% endblock %}
+    </div>
+    {% block script %}{% endblock %}
+</body>
+</html>

@@ -1,4 +1,7 @@
-flask
-flask-sqlalchemy
-requests
-sqlalchemy
+flask==0.12.2
+flask-sqlalchemy==2.3.2
+flask-wtf==0.14.2
+pycountry==17.9.23
+requests==2.18.4
+sqlalchemy==1.1.14
+wtforms==2.1

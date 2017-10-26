@@ -10,9 +10,14 @@ Interface Classes:
 # Standard libraries
 import datetime
 import json
+import re
 
 # Globe Indexer
 from globe_indexer import db
+
+
+# Constants
+SPECIAL_CHARS_REGEX = re.compile(r"[^A-Za-z0-9_]+")
 
 
 # pylint: disable=too-few-public-methods
@@ -42,7 +47,7 @@ class GeoName(_BaseModel):
 
     name = db.Column(db.String(200), nullable=False)
     ascii_name = db.Column(db.String(200), nullable=False)
-    alternate_names = db.Column(db.String(255))
+    alternate_names = db.Column(db.String(2500))
 
     latitude = db.Column(db.Float, nullable=False)
     longitude = db.Column(db.Float, nullable=False)
@@ -133,7 +138,7 @@ class GeoName(_BaseModel):
         """
         return self.id == other.id
 
-    def json(self):
+    def json(self, compact=True):
         """
         Represent the city in JSON format
 
@@ -146,5 +151,24 @@ class GeoName(_BaseModel):
             'longitude': self.longitude,
             'country_code': self.country_code,
         }
+        if not compact:
+            value['ascii_name'] = self.ascii_name
+            if self.alternate_names:
+                value['alternate_names'] = self.alternate_names.split(',')
+            if self.population is not None:
+                value['population'] = self.population
+            if self.cc2 is not None:
+                value['cc2'] = self.cc2.split(',')
         return json.loads(json.dumps(value))
+
+    @property
+    def variable_name(self):
+        """
+        Create an alias name that can be used in templates as unique ID
+
+        :return: string
+        """
+        name = SPECIAL_CHARS_REGEX.sub('', self.ascii_name)
+        elements = name.split() + [str(self.id)]
+        return '_'.join(elements)
 # pylint: enable=too-many-instance-attributes,too-few-public-methods

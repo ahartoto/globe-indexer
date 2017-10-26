@@ -1,4 +1,7 @@
 coverage
 pylint
-pytest
+pytest>=3.2.3
+pytest-cov>=2.5.1
 sphinx
+
+Flask-Testing==0.6.2

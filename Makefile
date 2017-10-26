@@ -5,10 +5,11 @@ NUKE := /bin/rm -rf
 
 PYTHON := python3
 PYLINT := pylint
-PYTEST := pytest
+PYTEST := py.test
 
 # App configurations
 PKG := globe_indexer
+TEST_DPATH := tests
 
 .PHONY:
 clean:
@@ -20,4 +21,9 @@ lint:
 
 .PHONY:
 test:
-	@$(PYTEST) tests
+	@$(PYTEST) $(TEST_DPATH) 
+
+.PHONY:
+coverage:
+	@$(PYTEST) --cov=$(PKG) $(TEST_DPATH) 
+

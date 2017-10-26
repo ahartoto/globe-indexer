@@ -119,7 +119,7 @@ def parse_geoname_table_file(fpath, delimiter='\t'):
 
     full_fpath = os.path.realpath(fpath)
     rows = list()
-    with open(full_fpath) as fin:
+    with open(full_fpath, encoding='utf-8') as fin:
         reader = csv.DictReader(fin, fieldnames=GEONAME_TABLE_HEADERS,
                                 delimiter=delimiter, quoting=csv.QUOTE_NONE)
         for line in reader:

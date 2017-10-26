@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block form %}
+    <h2>Lexical Search</h2>
+    <br />
+    <form action="" method="post" name="lexical form"
+          id="lexical-form">
+        {{ lexical_form.hidden_tag() }}
+        <p>City Name: {{ lexical_form.name(size=25) }}<br />
+        {% for error in lexical_form.name.errors %}
+            <span style="color: red;">[{{ error }}]</span>
+        {% endfor %}
+        </p>
+        <p><input type="submit" value="Search"
+                  id="lexical-submit-btn"></p>
+    </form>
+{% endblock %}
+
+{% block content %}
+    <div id="map" class="flex-item map">
+        {% if response %}
+        <pre>
+            <code>
+{{ response }}
+            </code>
+        </pre>
+        {% endif %}
+    </div>
+{% endblock %}
+
+{% block additional_links %}
+    <div id="additional-links">
+        <h2>Other Pages</h2>
+        <a id="proximity-form-link" href="/">Search Proximity</a>
+    </div>
+{% endblock %}

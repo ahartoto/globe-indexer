@@ -5,24 +5,93 @@ Globe Indexer API Controller Module
 """
 
 # Standard libraries
-import http
+import json
 import os
+
+# Python 3.5+
+try:
+    from http import HTTPStatus as StatusCodes
+except ImportError:
+    # Python 3
+    from http import client as StatusCodes
 
 # Flask
 import flask
 
-# SQLAlchemy
-from sqlalchemy import and_, or_
-
 # Globe Indexer
 from globe_indexer import config
-from globe_indexer import db
-from globe_indexer import utils
+from globe_indexer.api.forms import LexicalForm, ProximityForm
 from globe_indexer.api.models import GeoName
-
+from globe_indexer.api.query import (
+    country_code_query,
+    lexical_query,
+    proximity_query,
+)
 
 # Constants
-api = flask.Blueprint('api', __name__)
+api = flask.Blueprint('api', __name__,
+                      static_folder='static', template_folder='templates')
+
+
+@api.route('/', methods=['GET', 'POST'])
+@api.route('/form/proximity', methods=['GET', 'POST'])
+def index():
+    """
+    Serve the page to the user to provide entry point for querying information
+
+    :returns: rendering of the page
+    """
+    center = None
+    cities = list()
+
+    form = ProximityForm()
+    form.country_code.choices = country_code_query()
+
+    if form.validate_on_submit():
+        geoname_id = int(form.geoname_id.data)
+        k = int(form.query_limit.data)
+        country_code = None
+        if form.country_code.data:
+            country_code = form.country_code.data
+
+        center = GeoName.query.filter_by(id=geoname_id).first()
+        if center:
+            results = proximity_query(geoname_id, country_code=country_code)
+            cities = [GeoName.query.filter_by(id=elem[1]).first()
+                      for elem in results[:k]]
+        else:
+            flask.flash("Cannot find city with the given ID. Try again",
+                        "error")
+    return flask.render_template('proximity.html',
+                                 center=center, cities=cities,
+                                 enumerate=enumerate,
+                                 proximity_form=form)
+
+
+@api.route('/form/lexical', methods=['GET', 'POST'])
+def lexical_form():
+    """
+    Serve the page to the user to provide entry point for querying information
+
+    :returns: rendering of the page
+    """
+    form = LexicalForm()
+    response = None
+    if form.validate_on_submit():
+        value = form.name.data
+        names = [name.lower() for name in value.split()]
+        results = lexical_query(names)
+        if results:
+            payload = {
+                'cities': [city.json() for city in results],
+                'total': len(results),
+            }
+            response = json.dumps(payload, ensure_ascii=False, indent=2)
+        else:
+            flask.flash("Cannot find any city with specified name")
+    return flask.render_template('lexical.html',
+                                 response=response,
+                                 lexical_form=form)
 
 
 # Icon for the website
@@ -54,9 +123,9 @@ def geoname(geoname_id):
                 'type': 'INVALID_PATH',
             }
         }
-        return flask.jsonify(payload), http.HTTPStatus.NOT_FOUND
+        return flask.jsonify(payload), StatusCodes.NOT_FOUND
 
-    return result.json()
+    return flask.jsonify(result.json(compact=False))
 
 
 @api.route('/health')
@@ -83,7 +152,7 @@ def lexical():
                 'type': 'MISSING_QUERY_PARAMETER',
             }
         }
-        return flask.jsonify(payload), http.HTTPStatus.BAD_REQUEST
+        return flask.jsonify(payload), StatusCodes.BAD_REQUEST
 
     extra_query_params = [key for key in flask.request.args
                           if key not in {'cityName'}]
@@ -95,7 +164,7 @@ def lexical():
                 'type': 'UNSUPPORTED_QUERY_PARAMETER',
             }
         }
-        return flask.jsonify(payload), http.HTTPStatus.BAD_REQUEST
+        return flask.jsonify(payload), StatusCodes.BAD_REQUEST
 
     names = [name.lower() for name in flask.request.args['cityName'].split()]
     if len(names) < 1:
@@ -105,27 +174,11 @@ def lexical():
                 'type': 'VALIDATION_ERROR',
             }
         }
-        return flask.jsonify(payload), http.HTTPStatus.BAD_REQUEST
-    elif len(names) == 1:
-        name = '%{}%'.format(names[0])
-        all_criteria = or_(GeoName.name.ilike(name),
-                           GeoName.ascii_name.ilike(name),
-                           GeoName.alternate_names.ilike(name))
-        result = GeoName.query.filter(all_criteria).order_by(GeoName.id)
-    else:
-        search_criteria = [GeoName.name.ilike('%{}%'.format(name))
-                           for name in names]
-        all_criteria = and_(*search_criteria)
-        search_criteria = [GeoName.ascii_name.ilike('%{}%'.format(name))
-                           for name in names]
-        all_criteria = or_(all_criteria, and_(*search_criteria))
-        search_criteria += [GeoName.alternate_names.ilike('%{}%'.format(name))
-                            for name in names]
-        all_criteria = or_(all_criteria, and_(*search_criteria))
-        result = GeoName.query.filter(all_criteria).order_by(GeoName.id)
+        return flask.jsonify(payload), StatusCodes.BAD_REQUEST
 
-    points = [point.json() for point in result]
-    return flask.jsonify({'cities': points, 'total': len(points)})
+    results = lexical_query(names)
+    cities = [city.json() for city in results]
+    return flask.jsonify({'cities': cities, 'total': len(cities)})
 
 
 @api.route('/proximity/<int:geoname_id>')
@@ -146,7 +199,7 @@ def proximity(geoname_id):
                 'type': 'UNSUPPORTED_QUERY_PARAMETER',
             }
         }
-        return flask.jsonify(payload), http.HTTPStatus.BAD_REQUEST
+        return flask.jsonify(payload), StatusCodes.BAD_REQUEST
 
     try:
         k = int(flask.request.args['k'])
@@ -163,44 +216,28 @@ def proximity(geoname_id):
                 'type': 'VALIDATION_ERROR',
             }
         }
-        return flask.jsonify(payload), http.HTTPStatus.BAD_REQUEST
+        return flask.jsonify(payload), StatusCodes.BAD_REQUEST
 
     try:
         country_code = str(flask.request.args['countryCode']).upper()
     except KeyError:
         country_code = None
 
-    result = GeoName.query.filter_by(id=geoname_id).first()
-    if not result:
-        payload = {
-            'error': {
-                'message': "no city is found with ID: {}".format(geoname_id),
-                'type': 'INVALID_PATH',
-            }
-        }
-        return flask.jsonify(payload), http.HTTPStatus.NOT_FOUND
-
-    # Get all points in the table
-    # pylint: disable=no-member
-    query = db.session.query(GeoName.id, GeoName.latitude,
-                             GeoName.longitude)
-    # pylint: enable=no-member
-    if country_code is None:
-        points = query.all()
-    else:
-        points = query.filter_by(country_code=country_code).all()
-
-    distances = list()
-    for other_id, other_lat, other_long in points:
-        if other_id == geoname_id:
-            continue
-        distances.append((utils.get_distance(result.longitude, result.latitude,
-                                             other_long, other_lat),
-                          other_id))
-
+    distances = proximity_query(geoname_id, country_code=country_code)
     cities = [{'city': GeoName.query.filter_by(id=distance[1]).first().json(),
                'distance': distance[0]}
-              for distance in sorted(distances)[:k]]
+              for distance in distances[:k]]
+
     return flask.jsonify({'cities': cities,
                           'limit': k,
                           'total_available': len(distances)})
+
+
+@api.route('/static/style.css')
+def style_css():
+    """
+    Return the style.css
+    :returns: Flask response
+    """
+    return flask.send_from_directory(os.path.join(api.root_path, 'static'),
+                                     'style.css')
