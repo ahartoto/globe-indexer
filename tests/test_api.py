@@ -21,7 +21,7 @@ class TestAPI(BaseTest):
         self.assert200(response, "Service is supposed to be running")
 
         payload = {'message': 'API is available'}
-        self.assertEqual(json.loads(response.data),
+        self.assertEqual(json.loads(response.data.decode()),
                          json.loads(json.dumps(payload)),
                          "Health returns unexpected message")
 
@@ -31,7 +31,7 @@ class TestAPI(BaseTest):
 
         response = self.app.get('/{}'.format(city_id))
         self.assert200(response, "Valid city ID should return 200")
-        assert json.loads(response.data) == city.json(compact=False)
+        assert json.loads(response.data.decode()) == city.json(compact=False)
 
         city_id = 0
         response = self.app.get('/{}'.format(city_id))
@@ -42,7 +42,7 @@ class TestAPI(BaseTest):
                 'type': 'INVALID_PATH'
             }
         }
-        self.assertEqual(json.loads(response.data),
+        self.assertEqual(json.loads(response.data.decode()),
                          json.loads(json.dumps(payload)),
                          "Invalid ID returns unexpected message")
 
@@ -80,7 +80,7 @@ class TestAPI(BaseTest):
             ],
             'total': 1,
         }
-        self.assertEqual(json.loads(response.data),
+        self.assertEqual(json.loads(response.data.decode()),
                          json.loads(json.dumps(payload)),
                          "valid city response has unexpected JSON content")
 
@@ -102,10 +102,15 @@ class TestAPI(BaseTest):
         city_id = 3039163
         response = self.app.get('/proximity/{}'.format(city_id))
         self.assert200(response, "valid city ID returns 200")
-        payload = json.loads(response.data)
+        payload = json.loads(response.data.decode())
         assert payload['limit'] == config.DEFAULT_PROXIMITY_LIMIT
         assert payload['total_available'] == 8
         assert len(payload['cities']) == payload['limit']
+
+        last_distance = payload['cities'][0]['distance']
+        for city in payload['cities'][1:]:
+            assert last_distance <= city['distance']
+            last_distance = city['distance']
 
         k = 0
         response = self.app.get('/proximity/{}?k={}'.format(city_id, k))
@@ -114,7 +119,7 @@ class TestAPI(BaseTest):
         k = 2
         response = self.app.get('/proximity/{}?k={}'.format(city_id, k))
         self.assert200(response, "valid city ID and k returns 200")
-        payload = json.loads(response.data)
+        payload = json.loads(response.data.decode())
         assert payload['limit'] == k
         assert payload['total_available'] == 8
         assert len(payload['cities']) == payload['limit']
@@ -122,7 +127,7 @@ class TestAPI(BaseTest):
         response = self.app.get('/proximity/{}?countryCode=ID'.format(city_id))
         self.assert200(response, "country code not in the database will "
                                  "return 200")
-        payload = json.loads(response.data)
+        payload = json.loads(response.data.decode())
         assert payload['limit'] == config.DEFAULT_PROXIMITY_LIMIT
         assert payload['total_available'] == 0
         assert len(payload['cities']) == payload['total_available']
@@ -130,7 +135,7 @@ class TestAPI(BaseTest):
         response = self.app.get('/proximity/{}?countryCode=AD'.format(city_id))
         self.assert200(response, "country code in the database will "
                                  "return 200")
-        payload = json.loads(response.data)
+        payload = json.loads(response.data.decode())
         assert payload['limit'] == config.DEFAULT_PROXIMITY_LIMIT
         assert payload['total_available'] == 8
         assert len(payload['cities']) == payload['limit']
