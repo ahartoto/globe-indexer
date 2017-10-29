@@ -77,20 +77,22 @@ def lexical_form():
     :returns: rendering of the page
     """
     form = LexicalForm()
+    cities = list()
     response = None
     if form.validate_on_submit():
         value = form.name.data
         names = [name.lower() for name in value.split()]
-        results = lexical_query(names)
-        if results:
+        cities = lexical_query(names)
+        if cities:
             payload = {
-                'cities': [city.json() for city in results],
-                'total': len(results),
+                'cities': [city.json() for city in cities],
+                'total': len(cities),
             }
             response = json.dumps(payload, ensure_ascii=False, indent=2)
         else:
             flask.flash("Cannot find any city with specified name")
     return flask.render_template('lexical.html',
+                                 cities=cities,
                                  response=response,
                                  lexical_form=form)
 

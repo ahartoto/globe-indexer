@@ -1,5 +1,37 @@
 {% extends "base.html" %}
 
+{% block head %}
+    <link rel="stylesheet" href="https://openlayers.org/en/v4.4.2/css/ol.css" type="text/css">
+    <!-- The line below is only needed for old environments like Internet Explorer and Android 4.x -->
+    <script src="https://cdn.polyfill.io/v2/polyfill.min.js?features=requestAnimationFrame,Element.prototype.classList,URL"></script>
+    <script src="https://openlayers.org/en/v4.4.2/build/ol.js"></script>
+    <script src="https://code.jquery.com/jquery-2.2.3.min.js"></script>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css">
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js"></script>
+{% endblock %}
+
+{% block additional_style %}
+    <style>
+        {%- for city in cities %}
+        #{{ city.variable_name }}_marker {
+            width: 20px;
+            height: 20px;
+            border: 1px solid #088;
+            border-radius: 10px;
+            background-color: #0FF;
+            opacity: 0.5;
+        }
+        #{{ city.variable_name }}_label {
+            text-decoration: none;
+            color: black;
+            font-size: 11pt;
+            font-weight: bold;
+            text-shadow: black 0.1em 0.1em 0.2em;
+        }
+        {%- endfor %}
+    </style>
+{% endblock %}
+
 {% block form %}
     <h2>Lexical Search</h2>
     <br />
@@ -17,7 +49,8 @@
 {% endblock %}
 
 {% block content %}
-    <div id="map" class="flex-item map">
+    {% if cities -%}
+    <div id="json-response" class="flex-item json-response">
         {% if response %}
         <pre>
             <code>
@@ -26,6 +59,64 @@
         </pre>
         {% endif %}
     </div>
+    {% endif -%}
+
+    <div id="map" class="flex-item map"></div>
+    <div style="display: none;">
+        {%- for city in cities -%}
+        <div id="{{ city.variable_name }}_marker"
+             title="{{ city.name }} Marker"></div>
+        <div class="overlay" id="{{ city.variable_name }}_label">
+            {{ city.name }}
+        </div>
+        {%- endfor %}
+    </div>
+{% endblock %}
+
+{% block script %}
+    <script type="text/javascript">
+        var layer = new ol.layer.Tile({
+            source: new ol.source.OSM()
+        });
+
+        var view = new ol.View({
+            {% if cities -%}
+            center: [{{ cities[0].longitude }}, {{ cities[0].latitude }}],
+            {% else %}
+            center: [0, 0],
+            {% endif -%}
+            zoom: 2
+        });
+
+        var map = new ol.Map({
+            projection: 'EPSG:3857',
+            target: 'map',
+            layers: [layer],
+            view: view
+        });
+
+        {%- for city in cities -%}
+        var {{ city.variable_name }}_pos = ol.proj.fromLonLat([
+            {{ city.longitude }}, {{ city.latitude }}
+        ]);
+
+        // {{ city.variable_name }} marker
+        var {{ city.variable_name }}_marker = new ol.Overlay({
+            position: {{ city.variable_name }}_pos,
+            positioning: 'center-center',
+            element: document.getElementById('{{ city.variable_name }}_marker'),
+            stopEvent: false
+        });
+        map.addOverlay({{ city.variable_name }}_marker);
+
+        // {{ city.variable_name }} label
+        var {{ city.variable_name }}_label = new ol.Overlay({
+            position: {{ city.variable_name }}_pos,
+            element: document.getElementById('{{ city.variable_name }}_label')
+        });
+        map.addOverlay({{ city.variable_name }}_label);
+        {%- endfor %}
+    </script>
 {% endblock %}
 
 {% block additional_links %}

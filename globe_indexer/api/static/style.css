@@ -23,6 +23,11 @@ pre 			{ font-family: monospace; }
 	flex: 1;
 }
 
+.json-response {
+	-webkit-flex: 1;
+	flex: 1;
+}
+
 .map {
 	-webkit-flex: 2;
 	flex: 2;
