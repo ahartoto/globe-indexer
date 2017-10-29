@@ -23,6 +23,7 @@ class BaseTest(TestCase):
         input_fpath = os.path.join(os.path.dirname(__file__), 'data',
                                    'geoname_example.txt')
         database.initialize_db(db, input_fpath)
+        self.app = app.test_client()
 
     def tearDown(self):
         db.session.remove()

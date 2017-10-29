@@ -27,6 +27,7 @@ from globe_indexer.api.query import (
     lexical_query,
     proximity_query,
 )
+from globe_indexer.error import GlobeIndexerError
 
 # Constants
 api = flask.Blueprint('api', __name__,
@@ -166,8 +167,9 @@ def lexical():
         }
         return flask.jsonify(payload), StatusCodes.BAD_REQUEST
 
-    names = [name.lower() for name in flask.request.args['cityName'].split()]
-    if len(names) < 1:
+    city_name = flask.request.args['cityName']
+    words = [word.lower() for word in city_name.split()]
+    if len(words) < 1:
         payload = {
             'error': {
                 'message': 'no value was provided to cityName query parameter',
@@ -176,7 +178,17 @@ def lexical():
         }
         return flask.jsonify(payload), StatusCodes.BAD_REQUEST
 
-    results = lexical_query(names)
+    results = lexical_query(words)
+    if not results:
+        payload = {
+            'error': {
+                'message': 'found no city with the provided name: {}'.format(
+                    city_name),
+                'type': 'INVALID_PARAMETER_VALUE',
+            }
+        }
+        return flask.jsonify(payload), StatusCodes.NOT_FOUND
+
     cities = [city.json() for city in results]
     return flask.jsonify({'cities': cities, 'total': len(cities)})
 
@@ -223,14 +235,24 @@ def proximity(geoname_id):
     except KeyError:
         country_code = None
 
-    distances = proximity_query(geoname_id, country_code=country_code)
-    cities = [{'city': GeoName.query.filter_by(id=distance[1]).first().json(),
-               'distance': distance[0]}
-              for distance in distances[:k]]
+    try:
+        values = proximity_query(geoname_id, country_code=country_code)
+    except GlobeIndexerError as exc:
+        payload = {
+            'error': {
+                'message': exc.message,
+                'type': 'INVALID_PARAMETER_VALUE'
+            }
+        }
+        return flask.jsonify(payload), StatusCodes.BAD_REQUEST
+
+    cities = [{'city': GeoName.query.filter_by(id=value[1]).first().json(),
+               'distance': value[0]}
+              for value in values[:k]]
 
     return flask.jsonify({'cities': cities,
                           'limit': k,
-                          'total_available': len(distances)})
+                          'total_available': len(values)})
 
 
 @api.route('/static/style.css')
