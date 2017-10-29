@@ -13,7 +13,8 @@ TEST_DPATH := tests
 
 .PHONY:
 clean:
-	-@$(NUKE) __pycache__ .cache build $(PKG).egg-info
+	-@$(NUKE) __pycache__ .cache build $(PKG).egg-info .coverage htmlcov
+	@cd docs; make clean
 
 .PHONY:
 lint:
@@ -27,3 +28,6 @@ test:
 coverage:
 	@$(PYTEST) --cov=$(PKG) $(TEST_DPATH) 
 
+.PHONY:
+html:
+	@cd docs; make html
