@@ -35,11 +35,11 @@ The parsed information then gets loaded on to an `SQLite <http://www.sqlite
 .org>`_ database so it would persist. Features supported in the current
 version of the application deals with searching (or querying) and sorting
 (based on distance). Therefore, it makes sense to store the information
-into a database. The parsing of the file and loading in onto the database will
+into a database. The parsing of the file and loading it onto the database will
 occur when the application is launched for the first time in a new host machine.
 
-Due to the size of the data file from GeoNames, it is not committed to the
-repository of the project. I've set up the code that would automatically
+Due to the large size of the data file from GeoNames, it is not committed to the
+repository of the project. I have set up the code that would automatically
 download and unzip the file once it's downloaded if the expected data file
 doesn't exist in the specified location and if the database is empty.
 
@@ -70,7 +70,8 @@ The disadvantages of this approach:
 Another option that was considered is to use
 `AWS RDS <https://aws.amazon.com/rds/>`_ (PostgreSQL + PostGIS).
 The advantage of doing so is having one "source of truth". Any update needs
-to be made to the data only has to be done once.
+to be made to the data only has to be done once. However, it requires setting
+
 
 Distance Calculation Considerations
 ===================================
