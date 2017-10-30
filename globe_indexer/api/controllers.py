@@ -34,9 +34,8 @@ api = flask.Blueprint('api', __name__,
                       static_folder='static', template_folder='templates')
 
 
-@api.route('/', methods=['GET', 'POST'])
 @api.route('/form/proximity', methods=['GET', 'POST'])
-def index():
+def proximity_form():
     """
     Serve the page to the user to provide entry point for querying information
 
@@ -65,10 +64,10 @@ def index():
                         "error")
     return flask.render_template('proximity.html',
                                  center=center, cities=cities,
-                                 enumerate=enumerate,
-                                 proximity_form=form)
+                                 enumerate=enumerate, proximity_form=form)
 
 
+@api.route('/', methods=['GET', 'POST'])
 @api.route('/form/lexical', methods=['GET', 'POST'])
 def lexical_form():
     """
@@ -91,10 +90,8 @@ def lexical_form():
             response = json.dumps(payload, ensure_ascii=False, indent=2)
         else:
             flask.flash("Cannot find any city with specified name")
-    return flask.render_template('lexical.html',
-                                 cities=cities,
-                                 response=response,
-                                 lexical_form=form)
+    return flask.render_template('lexical.html', cities=cities,
+                                 response=response, lexical_form=form)
 
 
 # Icon for the website
