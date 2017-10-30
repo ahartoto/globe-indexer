@@ -10,11 +10,13 @@ from flask_testing import TestCase
 from globe_indexer import app
 from globe_indexer import db
 from globe_indexer.api import database
+from globe_indexer.api.controllers import api as api_blueprint
 
 
 class BaseTest(TestCase):
     def create_app(self):
         app.config.from_object('config.TestConfig')
+        app.register_blueprint(api_blueprint)
         db.init_app(app)
         return app
 

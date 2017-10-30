@@ -6,6 +6,7 @@ import os
 # Globe Indexer
 from globe_indexer import app as application
 from globe_indexer import db
+from globe_indexer.api.controllers import api as api_blueprint
 from globe_indexer.api.database import initialize_db
 
 
@@ -16,6 +17,9 @@ def main():
     """
     # Add application to context for database
     application.app_context().push()
+
+    # Register Blueprint
+    application.register_blueprint(api_blueprint)
 
     # Initialize database
     db.init_app(application)

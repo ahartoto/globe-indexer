@@ -41,10 +41,3 @@ def page_not_found(error):
 
 # Database
 db = SQLAlchemy()
-
-# pylint: disable=wrong-import-position
-from .api.controllers import api as api_blueprint
-# pylint: enable=wrong-import-position
-
-# Register Blueprint
-app.register_blueprint(api_blueprint)
