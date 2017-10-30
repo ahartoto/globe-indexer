@@ -184,7 +184,7 @@ def lexical():
                           if key not in {'cityName'}]
     if extra_query_params:
         message = 'invalid query parameters: {}'.format(
-                    ','.join(extra_query_params))
+            ','.join(extra_query_params))
         error_type = 'UNSUPPORTED_QUERY_PARAMETER'
         return utils.formulate_json_error(message, error_type,
                                           StatusCodes.BAD_REQUEST)
@@ -227,7 +227,7 @@ def proximity(geoname_id):
                           if key not in {'k', 'countryCode'}]
     if extra_query_params:
         message = 'invalid query parameters: {}'.format(
-                    ','.join(extra_query_params))
+            ','.join(extra_query_params))
         error_type = 'UNSUPPORTED_QUERY_PARAMETER'
         return utils.formulate_json_error(message, error_type,
                                           StatusCodes.BAD_REQUEST)
