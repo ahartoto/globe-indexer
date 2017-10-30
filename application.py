@@ -15,11 +15,11 @@ def main():
     """
     Main function for the application
     """
-    # Add application to context for database
-    application.app_context().push()
-
     # Register Blueprint
     application.register_blueprint(api_blueprint)
+
+    # Add application to context for database
+    application.app_context().push()
 
     # Initialize database
     db.init_app(application)
