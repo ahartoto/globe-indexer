@@ -12,12 +12,13 @@ import datetime
 import json
 import re
 
-# Globe Indexer
-from globe_indexer import db
+# Flask-SQLAlchemy
+from flask_sqlalchemy import SQLAlchemy
 
 
 # Constants
 SPECIAL_CHARS_REGEX = re.compile(r"[^A-Za-z0-9_]+")
+db = SQLAlchemy()
 
 
 # pylint: disable=too-few-public-methods

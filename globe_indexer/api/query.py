@@ -11,9 +11,8 @@ import pycountry
 from sqlalchemy import distinct
 
 # Globe indexer
-from globe_indexer import db
 from globe_indexer import utils
-from globe_indexer.api.models import GeoName
+from globe_indexer.api.models import GeoName, db
 from globe_indexer.error import GlobeIndexerError
 
 
