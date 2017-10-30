@@ -20,6 +20,7 @@ import flask
 
 # Globe Indexer
 from globe_indexer import config
+from globe_indexer import utils
 from globe_indexer.api.forms import LexicalForm, ProximityForm
 from globe_indexer.api.models import GeoName
 from globe_indexer.api.query import (
@@ -47,24 +48,49 @@ def proximity_form():
     form = ProximityForm()
     form.country_code.choices = country_code_query()
 
+    kwargs = {
+        'center': center,
+        'cities': cities,
+        'enumerate': enumerate,
+        'proximity_form': form,
+    }
+
+    template_fname = 'proximity.html'
+
     if form.validate_on_submit():
-        geoname_id = int(form.geoname_id.data)
-        k = int(form.query_limit.data)
+        try:
+            geoname_id = int(form.geoname_id.data)
+        except ValueError:
+            flask.flash("city ID should be an integer", "error")
+            return flask.render_template(template_fname, **kwargs)
+
+        try:
+            k = int(form.query_limit.data)
+            if k < 1:
+                raise ValueError("value of search limit should be a positive "
+                                 "integer")
+        except ValueError as exc:
+            flask.flash(str(exc), "error")
+            return flask.render_template(template_fname, **kwargs)
+
         country_code = None
         if form.country_code.data:
-            country_code = form.country_code.data
+            country_code = form.country_code.data.upper()
+            if len(country_code) != 2:
+                flask.flash("invalid country code format provided", "error")
+                return flask.render_template(template_fname, **kwargs)
 
         center = GeoName.query.filter_by(id=geoname_id).first()
         if center:
             results = proximity_query(geoname_id, country_code=country_code)
             cities = [GeoName.query.filter_by(id=elem[1]).first()
                       for elem in results[:k]]
+            kwargs['center'] = center
+            kwargs['cities'] = cities
         else:
             flask.flash("Cannot find city with the given ID. Try again",
                         "error")
-    return flask.render_template('proximity.html',
-                                 center=center, cities=cities,
-                                 enumerate=enumerate, proximity_form=form)
+    return flask.render_template(template_fname, **kwargs)
 
 
 @api.route('/', methods=['GET', 'POST'])
@@ -80,16 +106,22 @@ def lexical_form():
     response = None
     if form.validate_on_submit():
         value = form.name.data
-        names = [name.lower() for name in value.split()]
-        cities = lexical_query(names)
-        if cities:
-            payload = {
-                'cities': [city.json() for city in cities],
-                'total': len(cities),
-            }
-            response = json.dumps(payload, ensure_ascii=False, indent=2)
+        if utils.has_invalid_chars(value):
+            flask.flash("city name can only be alphanumeric or * character",
+                        "error")
         else:
-            flask.flash("Cannot find any city with specified name")
+            names = [name.lower() for name in value.split()]
+            cities = lexical_query(names)
+            if cities:
+                payload = {
+                    'cities': [city.json() for city in cities],
+                    'total': len(cities),
+                }
+                response = json.dumps(payload, ensure_ascii=False, indent=2)
+            else:
+                flask.flash("Found no city with the specified name. Try a "
+                            "different one or use the * wildcard.",
+                            "message")
     return flask.render_template('lexical.html', cities=cities,
                                  response=response, lexical_form=form)
 
@@ -117,13 +149,10 @@ def geoname(geoname_id):
     """
     result = GeoName.query.filter_by(id=geoname_id).first()
     if not result:
-        payload = {
-            'error': {
-                'message': "no city is found with ID: {}".format(geoname_id),
-                'type': 'INVALID_PATH',
-            }
-        }
-        return flask.jsonify(payload), StatusCodes.NOT_FOUND
+        message = "no city is found with ID: {}".format(geoname_id)
+        error_type = 'INVALID_PATH'
+        return utils.formulate_json_error(message, error_type,
+                                          StatusCodes.NOT_FOUND)
 
     return flask.jsonify(result.json(compact=False))
 
@@ -146,47 +175,41 @@ def lexical():
     :returns: Flask response
     """
     if not flask.request.query_string:
-        payload = {
-            'error': {
-                'message': 'no cityName query string was provided',
-                'type': 'MISSING_QUERY_PARAMETER',
-            }
-        }
-        return flask.jsonify(payload), StatusCodes.BAD_REQUEST
+        message = 'no cityName query string was provided'
+        error_type = 'MISSING_QUERY_PARAMETER'
+        return utils.formulate_json_error(message, error_type,
+                                          StatusCodes.BAD_REQUEST)
 
     extra_query_params = [key for key in flask.request.args
                           if key not in {'cityName'}]
     if extra_query_params:
-        payload = {
-            'error': {
-                'message': 'invalid query parameters: {}'.format(
-                    ','.join(extra_query_params)),
-                'type': 'UNSUPPORTED_QUERY_PARAMETER',
-            }
-        }
-        return flask.jsonify(payload), StatusCodes.BAD_REQUEST
+        message = 'invalid query parameters: {}'.format(
+                    ','.join(extra_query_params))
+        error_type = 'UNSUPPORTED_QUERY_PARAMETER'
+        return utils.formulate_json_error(message, error_type,
+                                          StatusCodes.BAD_REQUEST)
 
     city_name = flask.request.args['cityName']
+    if utils.has_invalid_chars(city_name):
+        message = 'found invalid chars in parameter: {}'.format(city_name)
+        message += '. Valid chars: A-Za-z0-9*'
+        error_type = 'VALIDATION_ERROR'
+        return utils.formulate_json_error(message, error_type,
+                                          StatusCodes.BAD_REQUEST)
+
     words = [word.lower() for word in city_name.split()]
     if len(words) < 1:
-        payload = {
-            'error': {
-                'message': 'no value was provided to cityName query parameter',
-                'type': 'VALIDATION_ERROR',
-            }
-        }
-        return flask.jsonify(payload), StatusCodes.BAD_REQUEST
+        message = 'no value was provided to cityName query parameter'
+        error_type = 'VALIDATION_ERROR'
+        return utils.formulate_json_error(message, error_type,
+                                          StatusCodes.BAD_REQUEST)
 
     results = lexical_query(words)
     if not results:
-        payload = {
-            'error': {
-                'message': 'found no city with the provided name: {}'.format(
-                    city_name),
-                'type': 'INVALID_PARAMETER_VALUE',
-            }
-        }
-        return flask.jsonify(payload), StatusCodes.NOT_FOUND
+        message = 'found no city with the provided name: {}'.format(city_name)
+        error_type = 'INVALID_PARAMETER_VALUE'
+        return utils.formulate_json_error(message, error_type,
+                                          StatusCodes.NOT_FOUND)
 
     cities = [city.json() for city in results]
     return flask.jsonify({'cities': cities, 'total': len(cities)})
@@ -203,14 +226,11 @@ def proximity(geoname_id):
     extra_query_params = [key for key in flask.request.args
                           if key not in {'k', 'countryCode'}]
     if extra_query_params:
-        payload = {
-            'error': {
-                'message': 'invalid query parameters: {}'.format(
-                    ','.join(extra_query_params)),
-                'type': 'UNSUPPORTED_QUERY_PARAMETER',
-            }
-        }
-        return flask.jsonify(payload), StatusCodes.BAD_REQUEST
+        message = 'invalid query parameters: {}'.format(
+                    ','.join(extra_query_params))
+        error_type = 'UNSUPPORTED_QUERY_PARAMETER'
+        return utils.formulate_json_error(message, error_type,
+                                          StatusCodes.BAD_REQUEST)
 
     try:
         k = int(flask.request.args['k'])
@@ -220,14 +240,11 @@ def proximity(geoname_id):
         # Choose default
         k = config.DEFAULT_PROXIMITY_LIMIT
     except ValueError:
-        payload = {
-            'error': {
-                'message': "query parameter 'k' needs to be a positive "
-                           "integer: {}".format(flask.request.args['k']),
-                'type': 'VALIDATION_ERROR',
-            }
-        }
-        return flask.jsonify(payload), StatusCodes.BAD_REQUEST
+        message = "query parameter 'k' needs to be a positive " \
+                  "integer: {}".format(flask.request.args['k'])
+        error_type = 'VALIDATION_ERROR'
+        return utils.formulate_json_error(message, error_type,
+                                          StatusCodes.BAD_REQUEST)
 
     try:
         country_code = str(flask.request.args['countryCode']).upper()
@@ -237,20 +254,15 @@ def proximity(geoname_id):
     try:
         values = proximity_query(geoname_id, country_code=country_code)
     except GlobeIndexerError as exc:
-        payload = {
-            'error': {
-                'message': exc.message,
-                'type': 'INVALID_PARAMETER_VALUE'
-            }
-        }
-        return flask.jsonify(payload), StatusCodes.BAD_REQUEST
+        error_type = 'INVALID_PARAMETER_VALUE'
+        return utils.formulate_json_error(exc.message, error_type,
+                                          StatusCodes.BAD_REQUEST)
 
     cities = [{'city': GeoName.query.filter_by(id=value[1]).first().json(),
                'distance': value[0]}
               for value in values[:k]]
 
-    return flask.jsonify({'cities': cities,
-                          'limit': k,
+    return flask.jsonify({'cities': cities, 'limit': k,
                           'total_available': len(values)})
 
 

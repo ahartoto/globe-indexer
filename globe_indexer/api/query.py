@@ -45,11 +45,7 @@ def lexical_query(names):
     :param names: list of string
     :returns: iterable of query
     """
-    if len(names) == 1:
-        value = names[0]
-    else:
-        value = '%'.join(names)
-
+    value = utils.get_query_string(names)
     query = GeoName.query.filter(GeoName.name.ilike(value))
     results = query.order_by(GeoName.id).all()
     return results

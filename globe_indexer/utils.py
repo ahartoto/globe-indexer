@@ -5,7 +5,10 @@ Globe Indexer Utility Module
 
 Interface functions:
     download_file
+    formulate_json_error
     get_distance
+    get_query_string
+    has_invalid_chars
     mkdirs
     parse_geoname_table_file
     unzip
@@ -14,8 +17,12 @@ Interface functions:
 # Standard libraries
 import csv
 import math
+import re
 import os
 import zipfile
+
+# Flask
+import flask
 
 # Requests
 import requests
@@ -24,6 +31,9 @@ import requests
 from globe_indexer import config
 from globe_indexer.error import GlobeIndexerError
 
+
+ASTERISK_RGX = re.compile(r"\*")
+DUPLICATE_PERCENT_RGX = re.compile(r'%+')
 
 GEONAME_TABLE_HEADERS = (
     'geonameid',
@@ -47,6 +57,8 @@ GEONAME_TABLE_HEADERS = (
     'modification_date',
 )
 
+INVALID_CHARS_RGX = re.compile(r"[`~!@#$%^&()+=[\]{}|\\:;\"\'<>?,./]+")
+
 
 def download_file(url, fpath):
     """
@@ -63,6 +75,24 @@ def download_file(url, fpath):
         for chunk in response.iter_content(chunk_size=config.DATA_CHUNK_SIZE):
             if chunk:
                 fout.write(chunk)
+
+
+def formulate_json_error(message, error_type, returncode):
+    """
+    Get the error message in JSON format ready to be returned as a response
+
+    :param message: string
+    :param error_type: string
+    :param returncode: http.HTTPStatus member
+    :returns: a tuple with two elements (JSON response, returncode)
+    """
+    payload = {
+        'error': {
+            'message': message,
+            'type': error_type,
+        }
+    }
+    return flask.jsonify(payload), returncode
 
 
 def get_distance(lon1, lat1, lon2, lat2):
@@ -86,6 +116,37 @@ def get_distance(lon1, lat1, lon2, lat2):
         math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2) ** 2
     value = 2 * math.asin(math.sqrt(value))
     return value * config.EARTH_RADIUS
+
+
+def get_query_string(words):
+    """
+    Get the query string in a format that is SQL friendly after replacing *
+    or space with %
+
+    :param words: iterable of string
+    :returns: string
+    """
+    if len(words) > 1:
+        query_str = '%'.join(words)
+    elif len(words) == 1:
+        query_str = words[0]
+    else:
+        fstr = "length of iterable should be at least 1"
+        raise GlobeIndexerError(fstr)
+
+    return DUPLICATE_PERCENT_RGX.sub('%', ASTERISK_RGX.sub('%', query_str))
+
+
+def has_invalid_chars(value):
+    """
+    Check if the specified string has any invalid characters
+
+    :param value: string
+    :returns: boolean
+    """
+    if INVALID_CHARS_RGX.search(value):
+        return True
+    return False
 
 
 def mkdirs(dpath):
