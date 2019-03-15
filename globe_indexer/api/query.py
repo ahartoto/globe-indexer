@@ -30,7 +30,11 @@ def country_code_query():
     codes = [('', '')]
     for code in query.order_by(GeoName.country_code):
         try:
-            country_name = pycountry.countries.get(alpha_2=code[0]).name
+            country = pycountry.countries.get(alpha_2=code[0])
+            if country:
+                country_name = country.name
+            else:
+                country_name = code[0]
         except KeyError:
             country_name = code[0]
         choice = '{} - {}'.format(code[0], country_name)

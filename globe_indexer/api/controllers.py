@@ -198,7 +198,7 @@ def lexical():
                                           StatusCodes.BAD_REQUEST)
 
     words = [word.lower() for word in city_name.split()]
-    if len(words) < 1:
+    if not words:
         message = 'no value was provided to cityName query parameter'
         error_type = 'VALIDATION_ERROR'
         return utils.formulate_json_error(message, error_type,
